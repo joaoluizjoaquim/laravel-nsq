@@ -157,6 +157,7 @@ class NsqQueue extends Queue implements QueueContract
                     continue;
                 } elseif (Unpack::isMessage($frame)) {
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
+                    Log::info("Ready to process job.");
                     $response = new NsqJob($this->container, $this, $rawBody, $queue);
                 } else {
 
@@ -193,6 +194,25 @@ class NsqQueue extends Queue implements QueueContract
             $property->setValue($queueManager, $connections);
             Log::info("refresh nsq client success.");
         }
+    }
+
+    /**
+     * refresh nsq client form nsqlookupd result
+     */
+    public function reRefreshClient()
+    {
+        foreach ($this->pool->getConsumerPool() as $key => $client) {
+            $client->close();
+        }
+        $queueManager = app('queue');
+        $reflect = new \ReflectionObject($queueManager);
+        $property = $reflect->getProperty('connections');
+        $property->setAccessible(true);
+        //remove nsq
+        $connections = $property->getValue($queueManager);
+        unset($connections['nsq']);
+        $property->setValue($queueManager, $connections);
+        Log::info("re-refresh nsq client success.");
     }
 
     /**
