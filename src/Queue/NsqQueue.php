@@ -149,18 +149,17 @@ class NsqQueue extends Queue implements QueueContract
                 $frame = Unpack::getFrame($data);
 
                 if (Unpack::isHeartbeat($frame)) {
-                    //Log::info($key . "sending heartbeat");
+                    Log::debug(`$key sending heartbeat`);
                     $this->currentClient->send(Packet::nop());
                 } elseif (Unpack::isOk($frame)) {
                     continue;
                 } elseif (Unpack::isError($frame)) {
+                    Log::debug('Error in frame received');
                     continue;
                 } elseif (Unpack::isMessage($frame)) {
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
                     Log::info("Ready to process job.");
                     $response = new NsqJob($this->container, $this, $rawBody, $queue);
-                } else {
-
                 }
             }
 
