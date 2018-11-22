@@ -4,6 +4,7 @@ namespace Jiyis\Nsq\Monitor;
 
 
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Jiyis\Nsq\Message\Packet;
 use Swoole\Client;
 
@@ -70,19 +71,25 @@ class Consumer extends AbstractMonitor
 
         list($host, $port) = explode(':', $this->host);
         // connect nsq server
+        Log::debug('connecting to nsq server');
         if (!$this->client->connect($host, $port, 3)) {
             throw new \Exception('connect nsq server failed.');
         }
+        Log::debug('nsq server connected');
         // send magic to nsq server
+        Log::debug('send magic to nsq server');
         $this->client->send(Packet::magic());
 
         // send identify params
+        Log::debug('send identify params');
         $this->client->send(Packet::identify(Arr::get($this->config, 'identify')));
 
         // sub nsq topic and channel
+        Log::debug('sub nsq topic and channel');
         $this->client->send(Packet::sub($this->topic, $this->channel));
 
         // tell nsq server to be ready accept {n} data
+        Log::debug('tell nsq server to be ready accept {n} data');
         $this->client->send(Packet::rdy(Arr::get($this->config, 'options.rdy', 1)));
     }
 }
