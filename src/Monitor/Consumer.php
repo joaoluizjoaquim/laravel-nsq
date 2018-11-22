@@ -71,11 +71,11 @@ class Consumer extends AbstractMonitor
 
         list($host, $port) = explode(':', $this->host);
         // connect nsq server
-        Log::debug('connecting to nsq server');
+        Log::debug('connecting to nsq server '.$host.':'.$port);
         if (!$this->client->connect($host, $port, 3)) {
             throw new \Exception('connect nsq server failed.');
         }
-        Log::debug('nsq server connected');
+        Log::debug('nsq server connected '.$host.':'.$port);
         // send magic to nsq server
         Log::debug('send magic to nsq server');
         $this->client->send(Packet::magic());
