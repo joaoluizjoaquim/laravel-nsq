@@ -64,7 +64,7 @@ class Consumer extends AbstractMonitor
     public function connect()
     {
         // init swoole client
-        $this->client = new Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP, SWOOLE_SOCK_SYNC);
+        $this->client = new Client(SWOOLE_SOCK_TCP);
 
         // set swoole tcp client config
         $this->client->set(Arr::get($this->config, 'client.options'));
