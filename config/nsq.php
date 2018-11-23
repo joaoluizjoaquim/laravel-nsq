@@ -32,7 +32,7 @@ return [
       */
     'options' => [
         //Update RDY state (indicate you are ready to receive N messages)
-        'rdy' => 1,
+        'rdy' => env('NSQ_OPTIONS_RDY', 1),
         'cl'  => 1
     ],
 
@@ -43,7 +43,8 @@ return [
       |
       */
     'identify' => [
-        'user_agent' => 'nsq-client',
+        'user_agent' => env('NSQ_IDENTIFY_USER_AGENT', 'nsq-client'),
+        'feature_negotiation' => env('NSQ_IDENTIFY_FUTURE_NEGOTIATION', false),
     ],
 
 
