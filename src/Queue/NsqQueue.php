@@ -147,25 +147,20 @@ class NsqQueue extends Queue implements QueueContract
 
                 // unpack message
                 $frame = Unpack::getFrame($data);
-                Log::debug($key.': message unpacked. Message content: '. json_encode($frame));
 
                 if (Unpack::isHeartbeat($frame)) {
-                    Log::debug($key.': sending heartbeat');
+                    Log::debug($key.': sending heartbeat '.json_encode($frame));
                     $this->currentClient->send(Packet::nop());
-                    continue;
                 } elseif (Unpack::isOk($frame)) {
-                    Log::debug($key.': frame ok');
-                    continue;
+                    Log::debug($key.': frame ok '.json_encode($frame));
                 } elseif (Unpack::isError($frame)) {
-                    Log::debug($key.': error in frame received');
-                    continue;
+                    Log::debug($key.': error in frame received '.json_encode($frame));
                 } elseif (Unpack::isMessage($frame)) {
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
                     Log::info($key.': ready to process job '.get_class($this->consumerJob));
                     $response = new NsqJob($this->container, $this, $rawBody, $queue);
-                    continue;
                 } else {
-                    Log::error($key.': not recognized frame. '.$frame);
+                    Log::debug($key.': not recognized frame. '.json_encode($frame));
                 }
             }
 
@@ -184,8 +179,7 @@ class NsqQueue extends Queue implements QueueContract
     protected function refreshClient()
     {
         // check connect time
-        $connectTime = $this->pool->getConnectTime();
-        if (time() - $connectTime >= 60 * 5) {
+        if ($this->isConnectionTimeGreaterThanInSeconds(5)) {
             foreach ($this->pool->getConsumerPool() as $key => $client) {
                 $client->close();
             }
@@ -199,6 +193,11 @@ class NsqQueue extends Queue implements QueueContract
             $property->setValue($queueManager, $connections);
             Log::info("refresh nsq client success.");
         }
+    }
+
+    private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {
+        $connectTime = $this->pool->getConnectTime();
+        return time() - $connectTime >= 60 * $seconds;
     }
 
     /**
