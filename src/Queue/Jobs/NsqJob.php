@@ -95,7 +95,9 @@ class NsqJob extends Job implements JobContract
         $this->getCurrentClient()->send(Packet::fin($this->getJobId()));
         Log::info("Process job success, send fin to nsq server.");
         // receive form client
-        $this->getCurrentClient()->send(Packet::rdy(Config::get('nsq.options.rdy', 1)));
+        $this->getCurrentClient()->sendReady(
+            Arr::get($this->getQueue()->getClientPool()->getConfig(), 'options.rdy', 1)
+        );
         Log::info("Ready to receive next message.");
     }
 

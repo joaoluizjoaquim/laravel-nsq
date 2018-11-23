@@ -88,8 +88,13 @@ class Consumer extends AbstractMonitor
         Log::debug('sub nsq topic and channel');
         $this->client->send(Packet::sub($this->topic, $this->channel));
 
-        // tell nsq server to be ready accept {n} data
-        Log::debug('tell nsq server to be ready accept {n} data');
-        $this->client->send(Packet::rdy(Arr::get($this->config, 'options.rdy', 1)));
+        $this->sendReady(Arr::get($this->config, 'options.rdy', 1));
+    }
+
+    // tell nsq server to be ready accept {n} data
+    public function sendReady(int $count): void
+    {
+        Log::debug("tell nsq server to be ready accept $count data");
+        $this->client->send(Packet::rdy($count));
     }
 }

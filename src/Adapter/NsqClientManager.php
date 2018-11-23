@@ -188,6 +188,15 @@ class NsqClientManager
     }
 
     /**
+     * get nsq job
+     * @return mixed
+     */
+    public function getConfig()
+    {
+        return $this->config;
+    }
+
+    /**
      * get connect time
      * @return int
      */
