@@ -159,6 +159,7 @@ class NsqQueue extends Queue implements QueueContract
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
                     Log::info($key.': ready to process job '.get_class($this->consumerJob));
                     $response = new NsqJob($this->container, $this, $rawBody, $queue);
+                    break;
                 } else {
                     Log::debug($key.': not recognized frame. '.json_encode($frame));
                 }
