@@ -135,6 +135,7 @@ class NsqQueue extends Queue implements QueueContract
                 // if lost connection  try connect
                 //Log::info(socket_strerror($client->getClient()->errCode));
                 if (!$client->isConnected()) {
+                    Log::debug($key.' is not connected');
                     $this->pool->setConsumerPool($key);
                 }
 
@@ -143,7 +144,10 @@ class NsqQueue extends Queue implements QueueContract
                 $data = $this->currentClient->receive();
 
                 // if no message return null
-                if ($data == false) continue;
+                if ($data == false) {
+                    Log::debug($key." has no message, continue");
+                    continue;
+                }
 
                 // unpack message
                 $frame = Unpack::getFrame($data);
