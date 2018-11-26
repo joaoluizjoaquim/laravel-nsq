@@ -107,7 +107,7 @@ class NsqClientManager
             foreach ($nsqdList['lookupHosts'] as $item) {
                 $consumer = new Consumer($item, $this->config, $this->topic, $this->channel);
 
-                $this->consumerPool[$item] = $consumer;
+                $this->consumerPool[$item['host'].':'.$item['tcp_port']] = $consumer;
             }
 
         } else {

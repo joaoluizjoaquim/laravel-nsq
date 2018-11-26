@@ -91,9 +91,15 @@ class Lookup
                 }
                 foreach ($producers as $prod) {
                     $address = $prod['broadcast_address'];
-                    $host = "{$address}:{$prod['tcp_port']}";
+                    $tcpPort = $prod['tcp_port'];
+                    $httpPort = $prod['http_port'];
+                    $host = "{$address}:{$tcpPort}";
                     if (!in_array($host, $lookupHosts)) {
-                        $lookupHosts[] = $host;
+                        $lookupHosts[] = [
+                            'host'      => $address,
+                            'tcp_port'  => $tcpPort,
+                            'http_port' => $httpPort
+                        ];
                         $topicChannel[$host]['channels'] = $result['data']['channels'] ?? $result['channels'];
                     }
                 }

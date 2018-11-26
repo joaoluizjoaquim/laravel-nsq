@@ -141,6 +141,11 @@ class NsqQueue extends Queue implements QueueContract
 
                 $this->currentClient = $client;
 
+                if ($this->currentClient->hasDepthMessages() == 0) {
+                    Log::debug($key.': has no message in depth stats cache, continue');
+                    continue;
+                }
+
                 $data = $this->currentClient->receive();
 
                 // if no message return null
@@ -184,7 +189,7 @@ class NsqQueue extends Queue implements QueueContract
     protected function refreshClient()
     {
         // check connect time
-        if ($this->isConnectionTimeGreaterThanInSeconds(5)) {
+        if ($this->isConnectionTimeGreaterThanInSeconds(30)) {
             foreach ($this->pool->getConsumerPool() as $key => $client) {
                 $client->close();
             }
@@ -202,7 +207,7 @@ class NsqQueue extends Queue implements QueueContract
 
     private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {
         $connectTime = $this->pool->getConnectTime();
-        return time() - $connectTime >= 60 * $seconds;
+        return time() - $connectTime >= $seconds;
     }
 
     /**

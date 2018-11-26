@@ -7,6 +7,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Jiyis\Nsq\Message\Packet;
 use Swoole\Client;
+use Jiyis\Nsq\Exception\LookupException;
 
 class Consumer extends AbstractMonitor
 {
@@ -39,6 +40,7 @@ class Consumer extends AbstractMonitor
      */
     protected $host;
 
+    protected $stats;
 
     /**
      * Consumer constructor.
@@ -55,7 +57,7 @@ class Consumer extends AbstractMonitor
         $this->topic = $topic;
         $this->channel = $channel;
         $this->connect();
-
+        $this->stats = $this->getStatsFromNsqdInstance();
     }
 
     /**
@@ -69,13 +71,14 @@ class Consumer extends AbstractMonitor
         // set swoole tcp client config
         $this->client->set(Arr::get($this->config, 'client.options'));
 
-        list($host, $port) = explode(':', $this->host);
+        $host = $this->host['host'];
+        $port = $this->host['tcp_port'];
         // connect nsq server
-        Log::debug('connecting to nsq server '.$host.':'.$port);
+        Log::debug('connecting to nsq server '.$this->getTcpAddress());
         if (!$this->client->connect($host, $port, 3)) {
             throw new \Exception('connect nsq server failed.');
         }
-        Log::debug('nsq server connected '.$host.':'.$port);
+        Log::debug('nsq server connected '.$this->getTcpAddress());
         // send magic to nsq server
         Log::debug('send magic to nsq server');
         $this->client->send(Packet::magic());
@@ -96,5 +99,71 @@ class Consumer extends AbstractMonitor
     {
         Log::debug("tell nsq server to be ready accept $count data");
         $this->client->send(Packet::rdy($count));
+    }
+
+    public function getTcpAddress()
+    {
+        return $this->host['host'].':'.$this->host['tcp_port'];
+    }
+
+    public function getHttpAddress()
+    {
+        return $this->host['host'].':'.$this->host['tcp_port'];
+    }
+
+    public function getStatsFromNsqdInstance(): array
+    {
+        $host = $this->host['host'].':'.$this->host['http_port'];
+        $url = sprintf('http://%s/stats?format=json&topic=%s&channel=%s', $host, urlencode($this->topic), urlencode($this->channel));
+
+        $ch = curl_init($url);
+        $options = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER         => false,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_USERAGENT      => 'nsq swoole client',
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT        => 6,
+            CURLOPT_FAILONERROR    => true
+        ];
+
+        curl_setopt_array($ch, $options);
+        if (!$resultStr = curl_exec($ch)) {
+            throw new LookupException('Error talking to nsqd via ' . $url);
+        }
+
+        if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
+            $result = json_decode($resultStr, true);
+            $channelStats = [];
+            foreach($result['topics'] as $topicItem) {
+                if ($topicItem['topic_name'] != $this->topic) continue;
+
+                foreach($topicItem['channels'] as $channelItem) {
+                    if ($channelItem['channel_name'] != $this->channel) continue;
+
+                    $channelStats = $channelItem;
+                    break;
+                }
+                break;
+            }
+            curl_close($ch);
+            return $channelStats;
+        } else {
+            $err = curl_error($ch);
+            Log::error($err . $resultStr);
+            curl_close($ch);
+            throw new LookupException($err, -1);
+        }
+    }
+
+    public function getDepthMessages()
+    {
+        return $this->stats['depth'];
+    }
+
+    public function hasDepthMessages(): bool
+    {
+        return isset($this->stats['depth']) && $this->stats['depth'] > 0;
     }
 }
