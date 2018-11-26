@@ -45,6 +45,7 @@ return [
     'identify' => [
         'user_agent' => env('NSQ_IDENTIFY_USER_AGENT', 'nsq-client'),
         'feature_negotiation' => env('NSQ_IDENTIFY_FUTURE_NEGOTIATION', false),
+        'hostname' => gethostname()
     ],
 
 
