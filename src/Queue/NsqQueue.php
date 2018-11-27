@@ -73,7 +73,10 @@ class NsqQueue extends Queue implements QueueContract
      */
     public function size($queueName = null): int
     {
-        //todo get from nsqadmin
+        return array_reduce($this->pool->getConsumerPool(), function ($atual, $consumer) {
+            $atual += $consumer->getDepthMessages();
+            return $atual;
+        }, $size = 0);
     }
 
     /**
@@ -131,12 +134,10 @@ class NsqQueue extends Queue implements QueueContract
     {
         try {
             $response = null;
-            foreach ($this->pool->getConsumerPool() as $key => $client) {
-                // if lost connection  try connect
-                //Log::info(socket_strerror($client->getClient()->errCode));
+            foreach ($this->pool->getConsumerPoolOrderByDepthMessagesDesc() as $key => $client) {
                 if (!$client->isConnected()) {
-                    Log::debug($key.' is not connected');
-                    $this->pool->setConsumerPool($key);
+                    Log::debug($key.' is not connected, continue');
+                    continue;
                 }
 
                 $this->currentClient = $client;
@@ -166,7 +167,7 @@ class NsqQueue extends Queue implements QueueContract
                     Log::debug($key.': error in frame received '.json_encode($frame));
                 } elseif (Unpack::isMessage($frame)) {
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
-                    Log::info($key.': ready to process job '.get_class($this->consumerJob));
+                    Log::debug($key.': ready to process job '.get_class($this->consumerJob));
                     $response = new NsqJob($this->container, $this, $rawBody, $queue);
                     break;
                 } else {

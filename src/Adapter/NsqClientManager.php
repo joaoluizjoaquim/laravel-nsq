@@ -142,6 +142,15 @@ class NsqClientManager
         return $this->consumerPool;
     }
 
+    public function getConsumerPoolOrderByDepthMessagesDesc()
+    {
+        $consumerPool = $this->consumerPool;
+        usort($consumerPool, function($consumerA, $consumerB) {
+            return $consumerB->getDepthMessages() - $consumerA->getDepthMessages();
+        });
+        return $consumerPool;
+    }
+
     /**
      * @param $key
      * @throws \Exception
