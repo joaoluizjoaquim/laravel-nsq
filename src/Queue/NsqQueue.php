@@ -189,7 +189,7 @@ class NsqQueue extends Queue implements QueueContract
     protected function refreshClient()
     {
         // check connect time
-        if ($this->isConnectionTimeGreaterThanInSeconds(30)) {
+        if ($this->isConnectionTimeGreaterThanInSeconds(env('NSQLOOKUP_REFRESH_CONNECTION', 180))) {
             foreach ($this->pool->getConsumerPool() as $key => $client) {
                 $client->close();
             }
