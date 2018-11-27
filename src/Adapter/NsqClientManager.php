@@ -151,6 +151,16 @@ class NsqClientManager
         return $consumerPool;
     }
 
+    public function isConsumerPoolWithoutMessages(): bool
+    {
+        foreach($this->consumerPool as $consumer) {
+            if($consumer->hasDepthMessages()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * @param $key
      * @throws \Exception

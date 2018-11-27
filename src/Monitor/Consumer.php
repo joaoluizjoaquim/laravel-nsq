@@ -157,7 +157,7 @@ class Consumer extends AbstractMonitor
         }
     }
 
-    public function getDepthMessages()
+    public function getDepthMessages(): int
     {
         return isset($this->stats['depth']) ? $this->stats['depth'] : 0;
     }
@@ -165,5 +165,13 @@ class Consumer extends AbstractMonitor
     public function hasDepthMessages(): bool
     {
         return isset($this->stats['depth']) && $this->stats['depth'] > 0;
+    }
+
+    public function subDepthMessage(): void
+    {
+        if (!$this->hasDepthMessages()) {
+            return;
+        }
+        $this->stats['depth'] = $this->stats['depth'] - 1;
     }
 }

@@ -99,6 +99,7 @@ class NsqJob extends Job implements JobContract
             Arr::get($this->getQueue()->getClientPool()->getConfig(), 'options.rdy', 1)
         );
         Log::info("Ready to receive next message.");
+        $this->getCurrentClient()->subDepthMessage();
     }
 
 

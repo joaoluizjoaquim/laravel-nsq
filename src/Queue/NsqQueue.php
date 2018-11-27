@@ -134,16 +134,18 @@ class NsqQueue extends Queue implements QueueContract
     {
         try {
             $response = null;
-            foreach ($this->pool->getConsumerPoolOrderByDepthMessagesDesc() as $key => $client) {
+            foreach ($this->pool->getConsumerPoolOrderByDepthMessagesDesc() as $client) {
+                $nsqdInstance = $client->getTcpAddress();
+                
                 if (!$client->isConnected()) {
-                    Log::debug($key.' is not connected, continue');
+                    Log::debug($nsqdInstance.' is not connected, continue');
                     continue;
                 }
 
                 $this->currentClient = $client;
 
-                if ($this->currentClient->hasDepthMessages() == 0) {
-                    Log::debug($key.': has no message in depth stats cache, continue');
+                if (!$this->currentClient->hasDepthMessages()) {
+                    Log::debug($nsqdInstance.' has no message in depth stats cache, continue');
                     continue;
                 }
 
@@ -151,7 +153,7 @@ class NsqQueue extends Queue implements QueueContract
 
                 // if no message return null
                 if ($data == false) {
-                    Log::debug($key." has no message, continue");
+                    Log::debug($nsqdInstance." has no message, continue");
                     continue;
                 }
 
@@ -159,19 +161,19 @@ class NsqQueue extends Queue implements QueueContract
                 $frame = Unpack::getFrame($data);
 
                 if (Unpack::isHeartbeat($frame)) {
-                    Log::debug($key.': sending heartbeat '.json_encode($frame));
+                    Log::debug($nsqdInstance.': sending heartbeat '.json_encode($frame));
                     $this->currentClient->send(Packet::nop());
                 } elseif (Unpack::isOk($frame)) {
-                    Log::debug($key.': frame ok '.json_encode($frame));
+                    Log::debug($nsqdInstance.' frame ok '.json_encode($frame));
                 } elseif (Unpack::isError($frame)) {
-                    Log::debug($key.': error in frame received '.json_encode($frame));
+                    Log::debug($nsqdInstance.' error in frame received '.json_encode($frame));
                 } elseif (Unpack::isMessage($frame)) {
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
-                    Log::debug($key.': ready to process job '.get_class($this->consumerJob));
+                    Log::debug($nsqdInstance.' ready to process job '.get_class($this->consumerJob));
                     $response = new NsqJob($this->container, $this, $rawBody, $queue);
                     break;
                 } else {
-                    Log::debug($key.': not recognized frame. '.json_encode($frame));
+                    Log::debug($nsqdInstance.' not recognized frame. '.json_encode($frame));
                 }
             }
 
@@ -190,7 +192,8 @@ class NsqQueue extends Queue implements QueueContract
     protected function refreshClient()
     {
         // check connect time
-        if ($this->isConnectionTimeGreaterThanInSeconds(env('NSQLOOKUP_REFRESH_CONNECTION', 180))) {
+        if ($this->isConnectionTimeGreaterThanInSeconds(env('NSQLOOKUP_REFRESH_CONNECTION', 180)) ||
+            $this->pool->isConsumerPoolWithoutMessages()) {
             foreach ($this->pool->getConsumerPool() as $key => $client) {
                 $client->close();
             }
