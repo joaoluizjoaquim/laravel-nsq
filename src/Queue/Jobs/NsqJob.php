@@ -93,12 +93,12 @@ class NsqJob extends Job implements JobContract
         parent::delete();
         // sending to client set success
         $this->getCurrentClient()->send(Packet::fin($this->getJobId()));
-        Log::info("Process job success, send fin to nsq server.");
+        Log::debug("Process job success, send fin to nsq server.");
         // receive form client
         $this->getCurrentClient()->sendReady(
             Arr::get($this->getQueue()->getClientPool()->getConfig(), 'options.rdy', 1)
         );
-        Log::info("Ready to receive next message.");
+        Log::debug("Ready to receive next message.");
         $this->getCurrentClient()->subDepthMessage();
     }
 

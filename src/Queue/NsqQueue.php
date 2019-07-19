@@ -176,11 +176,8 @@ class NsqQueue extends Queue implements QueueContract
                     Log::debug($nsqdInstance.' not recognized frame. '.json_encode($frame));
                 }
             }
-
             $this->refreshClient();
-
             return $response;
-
         } catch (\Throwable $exception) {
             throw new SubscribeException($exception->getMessage());
         }
@@ -205,7 +202,7 @@ class NsqQueue extends Queue implements QueueContract
             $connections = $property->getValue($queueManager);
             unset($connections['nsq']);
             $property->setValue($queueManager, $connections);
-            Log::info("refresh nsq client success.");
+            Log::debug("refresh nsq client success.");
         }
     }
 
