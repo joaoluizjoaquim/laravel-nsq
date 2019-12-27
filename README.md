@@ -5,7 +5,7 @@ NSQ client for laravel
 
 | Dependency | Requirement |
 | -------- | -------- |
-| [PHP](https://secure.php.net/manual/en/install.php) | `>= 7.1.0` |
+| [PHP](https://secure.php.net/manual/en/install.php) | `>= 7.2.0` |
 | [Swoole](https://www.swoole.co.uk/) | `The Newer The Better` `No longer support PHP5 since 2.0.12` |
 
 ## Installation
