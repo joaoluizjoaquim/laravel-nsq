@@ -2,6 +2,7 @@
 
 namespace Jiyis\Nsq\Console;
 
+use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Queue\Console\WorkCommand as BaseWorkCommand;
 use Illuminate\Queue\Worker;
 use Illuminate\Support\Facades\Config;
@@ -15,10 +16,10 @@ class WorkCommand extends BaseWorkCommand
      * @param  \Illuminate\Queue\Worker $worker
      * @return void
      */
-    public function __construct(Worker $worker)
+    public function __construct(Worker $worker, Cache $cache)
     {
         $this->signature .= "{--job= : The consumer namespace}";
-        parent::__construct($worker);
+        parent::__construct($worker, $cache);
     }
 
     /**
