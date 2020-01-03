@@ -152,4 +152,9 @@ class NsqJob extends Job implements JobContract
     {
         return Arr::get($this->decoded, 'message');
     }
+
+    public function maxTries()
+    {
+        return isset($this->payload()['maxTries']) ? $this->payload()['maxTries'] : 0;
+    }
 }
