@@ -29,7 +29,9 @@ class WorkCommand extends BaseWorkCommand
      */
     public function handle()
     {
-        $this->hasOption('job') && Config::set(['consumer_job' => $this->option('job')]);
+        if ($this->hasOption('job')) {
+            Config::set(['consumer_job' => $this->option('job')]);
+        }
 
         if (method_exists(get_parent_class($this), 'handle')) {
             return parent::handle();

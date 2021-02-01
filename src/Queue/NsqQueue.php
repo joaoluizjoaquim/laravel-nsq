@@ -12,6 +12,7 @@ use Jiyis\Nsq\Exception\PublishException;
 use Jiyis\Nsq\Exception\SubscribeException;
 use Jiyis\Nsq\Message\Packet;
 use Jiyis\Nsq\Message\Unpack;
+use Jiyis\Nsq\Model\NsqdList;
 use Jiyis\Nsq\Queue\Jobs\NsqJob;
 
 class NsqQueue extends Queue implements QueueContract
@@ -62,7 +63,7 @@ class NsqQueue extends Queue implements QueueContract
      */
     public function __construct(NsqClientManager $client, $consumerJob, $retryAfter = 60)
     {
-        $this->pool = $client;
+        $this->clientManager = $client;
         $this->consumerJob = $consumerJob;
         $this->retryAfter = $retryAfter;
     }
@@ -73,10 +74,7 @@ class NsqQueue extends Queue implements QueueContract
      */
     public function size($queueName = null): int
     {
-        return array_reduce($this->pool->getConsumerPool(), function ($atual, $consumer) {
-            $atual += $consumer->getDepthMessages();
-            return $atual;
-        }, $size = 0);
+        return $this->getNsqdList()->size();
     }
 
     /**
@@ -134,7 +132,7 @@ class NsqQueue extends Queue implements QueueContract
     {
         try {
             $response = null;
-            foreach ($this->pool->getConsumerPoolOrderByDepthMessagesDesc() as $client) {
+            foreach ($this->getNsqdList()->orderByDepthMessagesDesc() as $client) {
                 $nsqdInstance = $client->getTcpAddress();
                 
                 if (!$client->isConnected()) {
@@ -152,14 +150,13 @@ class NsqQueue extends Queue implements QueueContract
                 $data = $this->currentClient->receive();
 
                 // if no message return null
-                if ($data == false) {
+                if (!$data) {
                     Log::debug($nsqdInstance." has no message, continue");
                     continue;
                 }
 
                 // unpack message
                 $frame = Unpack::getFrame($data);
-
                 if (Unpack::isHeartbeat($frame)) {
                     Log::debug($nsqdInstance.': sending heartbeat '.json_encode($frame));
                     $this->currentClient->send(Packet::nop());
@@ -189,11 +186,9 @@ class NsqQueue extends Queue implements QueueContract
     protected function refreshClient()
     {
         // check connect time
-        if ($this->isConnectionTimeGreaterThanInSeconds(env('NSQLOOKUP_REFRESH_CONNECTION', 180)) ||
-            $this->pool->isConsumerPoolWithoutMessages()) {
-            foreach ($this->pool->getConsumerPool() as $key => $client) {
-                $client->close();
-            }
+        if ($this->isConnectionTimeGreaterThanInSeconds(Config::get('nsqlookup_refresh_reconnection_time', 180)) ||
+            $this->getNsqdList()->isWithoutMessages()) {
+            $this->getNsqdList()->close();
             $queueManager = app('queue');
             $reflect = new \ReflectionObject($queueManager);
             $property = $reflect->getProperty('connections');
@@ -207,27 +202,8 @@ class NsqQueue extends Queue implements QueueContract
     }
 
     private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {
-        $connectTime = $this->pool->getConnectTime();
+        $connectTime = $this->clientManager->getConnectTime();
         return time() - $connectTime >= $seconds;
-    }
-
-    /**
-     * refresh nsq client form nsqlookupd result
-     */
-    public function reRefreshClient()
-    {
-        foreach ($this->pool->getConsumerPool() as $key => $client) {
-            $client->close();
-        }
-        $queueManager = app('queue');
-        $reflect = new \ReflectionObject($queueManager);
-        $property = $reflect->getProperty('connections');
-        $property->setAccessible(true);
-        //remove nsq
-        $connections = $property->getValue($queueManager);
-        unset($connections['nsq']);
-        $property->setValue($queueManager, $connections);
-        Log::info("re-refresh nsq client success.");
     }
 
     /**
@@ -288,7 +264,7 @@ class NsqQueue extends Queue implements QueueContract
      */
     public function getClientPool()
     {
-        return $this->pool;
+        return $this->clientManager;
     }
 
     /**
@@ -298,6 +274,16 @@ class NsqQueue extends Queue implements QueueContract
     public function getCurrentClient()
     {
         return $this->currentClient;
+    }
+
+    private function getNsqdList(): NsqdList
+    {
+        return $this->clientManager->getNsqdList();
+    }
+
+    private function getProducerPool()
+    {
+        return $this->clientManager->getProducerPool();
     }
 
     /**
@@ -319,7 +305,7 @@ class NsqQueue extends Queue implements QueueContract
     public function publishTo($cl = self::PUB_ONE)
     {
 
-        $producerPoolSize = count($this->pool->getProducerPool());
+        $producerPoolSize = count($this->getProducerPool());
 
         switch ($cl) {
             case self::PUB_ONE:
@@ -359,7 +345,7 @@ class NsqQueue extends Queue implements QueueContract
      */
     public function publish($topic, $msg, $tries = 1)
     {
-        $producerPool = $this->pool->getProducerPool();
+        $producerPool = $this->getProducerPool();
         // pick a random
         shuffle($producerPool);
 

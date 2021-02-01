@@ -19,8 +19,6 @@ class NsqQueueServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             __DIR__ . '/../config/nsq.php', 'queue.connections.nsq'
         );
-
-
     }
 
     /**

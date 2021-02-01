@@ -5,8 +5,8 @@ namespace Jiyis\Nsq\Adapter;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
-use Jiyis\Nsq\Lookup\Lookup;
-use Jiyis\Nsq\Monitor\Consumer;
+use Jiyis\Nsq\Model\NsqLookupd;
+use Jiyis\Nsq\Model\NsqdList;
 use Jiyis\Nsq\Monitor\Producer;
 
 class NsqClientManager
@@ -22,7 +22,7 @@ class NsqClientManager
      * nsq tcp sub client pool
      * @var
      */
-    protected $consumerPool = [];
+    protected $nsqdList;
 
     /**
      * nsq tcp pub client pool
@@ -81,10 +81,11 @@ class NsqClientManager
         $this->consumerJob = app(Config::get('consumer_job'));
         $reflect = new \ReflectionClass($this->consumerJob);
 
-        if ($reflect->hasProperty('topic') && $reflect->hasProperty('channel')) {
-            $this->topic = $reflect->getProperty('topic')->getValue($this->consumerJob);
-            $this->channel = $reflect->getProperty('channel')->getValue($this->consumerJob);
+        if (!$reflect->hasProperty('topic') || !$reflect->hasProperty('channel')) {
+            throw new \Exception("Topic and channel fields are required in " . Config::get('consumer_job') . " class");
         }
+        $this->topic = $reflect->getProperty('topic')->getValue($this->consumerJob);
+        $this->channel = $reflect->getProperty('channel')->getValue($this->consumerJob);
     }
 
     /**
@@ -95,33 +96,20 @@ class NsqClientManager
     public function connect()
     {
         $this->connectTime = time();
+        $lookup = new NsqLookupd($this->config);
         /**
-         * if topic and channel is not null, then the command is sub
+         * if consumer_job not null, then the command is sub
          */
         if (Config::get('consumer_job')) {
             $this->reflectionJob();
-
-            $lookup = new Lookup(Arr::get($this->config, 'connection.nsqlookup_url', ['127.0.0.1:4161']));
-            $nsqdList = $lookup->lookupHosts($this->topic);
-
-            foreach ($nsqdList['lookupHosts'] as $item) {
-                $consumer = new Consumer($item, $this->config, $this->topic, $this->channel);
-
-                $this->consumerPool[$item['host'].':'.$item['tcp_port']] = $consumer;
-            }
-
-        } else {
-            /**
-             * if topic and channel is null, then the command is pub
-             */
-            $hosts = Arr::get($this->config, 'connection.nsqd_url', ['127.0.0.1:4150']);
-            foreach ($hosts as $item) {
-                $producer = new Producer($item, $this->config);
-                $this->producerPool[$item] = $producer;
-            }
+            $this->nsqdList = $lookup->lookup($this->topic, $this->channel);
+            return;
         }
-
-
+        $hosts = Arr::get($this->config, 'connection.nsqd_url', ['127.0.0.1:4150']);
+        foreach ($hosts as $item) {
+            $producer = new Producer($item, $this->config);
+            $this->producerPool[$item] = $producer;
+        }
     }
 
     /**
@@ -137,64 +125,9 @@ class NsqClientManager
      * get nsq sub client pool
      * @return mixed
      */
-    public function getConsumerPool()
+    public function getNsqdList(): NsqdList
     {
-        return $this->consumerPool;
-    }
-
-    public function getConsumerPoolOrderByDepthMessagesDesc()
-    {
-        $consumerPool = $this->consumerPool;
-        usort($consumerPool, function($consumerA, $consumerB) {
-            return $consumerB->getDepthMessages() - $consumerA->getDepthMessages();
-        });
-        return $consumerPool;
-    }
-
-    public function isConsumerPoolWithoutMessages(): bool
-    {
-        foreach($this->consumerPool as $consumer) {
-            if($consumer->hasDepthMessages()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * @param $key
-     * @throws \Exception
-     */
-    public function reconnectConsumerClient($key)
-    {
-        $this->consumerPool[$key] = new Consumer($key, $this->config, $this->topic, $this->channel);
-    }
-
-    /**
-     * @param $key
-     * @throws \Exception
-     */
-    public function reconnectProducerClient($key)
-    {
-        $this->consumerPool[$key] = new Producer($key, $this->config);;
-    }
-
-    /**
-     * get nsq topic
-     * @return mixed
-     */
-    public function getTopic()
-    {
-        return $this->topic;
-    }
-
-    /**
-     * get nsq channel
-     * @return mixed
-     */
-    public function getChannel()
-    {
-        return $this->channel;
+        return $this->nsqdList;
     }
 
     /**
@@ -222,14 +155,5 @@ class NsqClientManager
     public function getConnectTime()
     {
         return $this->connectTime;
-    }
-
-    /**
-     * set connect time
-     * @return int
-     */
-    public function setConnectTime($time)
-    {
-        return $this->connectTime = $time;
     }
 }

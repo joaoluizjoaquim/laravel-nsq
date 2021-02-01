@@ -3,8 +3,8 @@
 namespace Jiyis\Nsq\Monitor;
 
 use Illuminate\Support\Arr;
+use Jiyis\Nsq\Adapter\TcpClient;
 use Jiyis\Nsq\Message\Packet;
-use Swoole\Client;
 
 class Producer extends AbstractMonitor
 {
@@ -33,27 +33,15 @@ class Producer extends AbstractMonitor
 
     public function connect()
     {
-        // init swoole client
-        $this->client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-
-        // set swoole tcp client config
-        $this->client->set(Arr::get($this->config, 'client.options'));
+        $this->client = new TcpClient();
 
         list($host, $port) = explode(':', $this->host);
-        // connect nsq server
-        if (!$this->client->connect($host, $port, 3)) {
-            throw new \Exception('connect nsq server failed.');
-        }
+    
+        $this->client->connect($host, $port);
 
         $this->client->send(Packet::magic());
 
-        $this->client->send(Packet::identify([
-            'client_id'           => $this->host,
-            'hostname'            => gethostname(),
-            'user_agent'          => 'nsq_swoole_client_pub',
-            'heartbeat_interval'  => -1,
-            'feature_negotiation' => true
-        ]));
+        $this->client->send(Packet::identify(Arr::get($this->config, 'identify')));
 
         $this->client->recv();
 

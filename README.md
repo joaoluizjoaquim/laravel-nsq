@@ -6,12 +6,8 @@ NSQ client for laravel
 | Dependency | Requirement |
 | -------- | -------- |
 | [PHP](https://secure.php.net/manual/en/install.php) | `>= 7.2.0` |
-| [Swoole](https://www.swoole.co.uk/) | `The Newer The Better` `No longer support PHP5 since 2.0.12` |
 
 ## Installation
-```
-pecl install swoole
-```
 ```
 composer require jiyis/laravel-nsq
 ```
@@ -19,8 +15,10 @@ composer require jiyis/laravel-nsq
 ## Usage
 #### Set env
 ```
-NSQSD_URL=127.0.0.1:4150
-NSQLOOKUP_URL=127.0.0.1:4161
+# for publish
+NSQSD_URL=127.0.0.1:4150 
+# for subscribe
+NSQLOOKUP_URL=127.0.0.1:4161 
 
 # If it is multiple, please separate them with ","
 NSQSD_URL=127.0.0.1:4150,127.0.0.1:4250

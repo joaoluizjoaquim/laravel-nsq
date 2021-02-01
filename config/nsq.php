@@ -6,11 +6,12 @@
  * You need to set proper values in `.env`
  */
 return [
-
     'driver' => 'nsq',
-
-
     'queue' => env('API_PREFIX', 'default'),
+
+    'configs' => [
+      'nsqlookup_refresh_reconnection_time' => env('NSQLOOKUP_REFRESH_CONNECTION', 180)
+    ],
 
     /*
      |--------------------------------------------------------------------------
@@ -20,7 +21,6 @@ return [
      */
     'connection'       => [
         'nsqd_url' => array_filter(explode(',', env('NSQSD_URL', '127.0.0.1:9150'))),
-
         'nsqlookup_url' => array_filter(explode(',', env('NSQLOOKUP_URL', '127.0.0.1:4161'))),
     ],
 
@@ -43,26 +43,8 @@ return [
       |
       */
     'identify' => [
-        'user_agent' => env('NSQ_IDENTIFY_USER_AGENT', 'nsq-client'),
-        'feature_negotiation' => env('NSQ_IDENTIFY_FUTURE_NEGOTIATION', false),
+        'user_agent' => 'nsq-client',
+        'feature_negotiation' => true,
         'hostname' => gethostname()
-    ],
-
-
-    /*
-      |--------------------------------------------------------------------------
-      | Swoole Client Params
-      |--------------------------------------------------------------------------
-      |
-      */
-    'client' => [
-        'options' => [
-            'open_length_check'     => true,
-            'package_max_length'    => 2048000,
-            'package_length_type'   => 'N',
-            'package_length_offset' => 0,
-            'package_body_offset'   => 4
-        ]
-
-    ],
+    ]
 ];

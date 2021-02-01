@@ -127,7 +127,7 @@ class NsqJob extends Job implements JobContract
     }
 
     /**
-     * get nsq swoole client pool
+     * get nsq client pool
      * @return NsqQueue|string
      */
     public function getQueue()
@@ -136,7 +136,7 @@ class NsqJob extends Job implements JobContract
     }
 
     /**
-     * get current nsq swoole client
+     * get current nsq client
      * @return NsqQueue|string
      */
     public function getCurrentClient()
