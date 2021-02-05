@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Jiyis\Nsq\Queue\NsqQueue;
 use Jiyis\Nsq\Message\Packet;
+use Jiyis\Nsq\Model\Nsqd;
 
 class NsqJob extends Job implements JobContract
 {
@@ -91,15 +92,13 @@ class NsqJob extends Job implements JobContract
     public function delete()
     {
         parent::delete();
+
+        $client = $this->getCurrentClient();
         // sending to client set success
-        $this->getCurrentClient()->send(Packet::fin($this->getJobId()));
+        $client->send(Packet::fin($this->getJobId()));
         Log::debug("Process job success, send fin to nsq server.");
-        // receive form client
-        $this->getCurrentClient()->sendReady(
-            Arr::get($this->getQueue()->getClientPool()->getConfig(), 'options.rdy', 1)
-        );
-        Log::debug("Ready to receive next message.");
-        $this->getCurrentClient()->subDepthMessage();
+
+        $client->subDepthMessage();
     }
 
 
@@ -130,16 +129,12 @@ class NsqJob extends Job implements JobContract
      * get nsq client pool
      * @return NsqQueue|string
      */
-    public function getQueue()
+    public function getQueue(): NsqQueue
     {
         return $this->nsqQueue;
     }
 
-    /**
-     * get current nsq client
-     * @return NsqQueue|string
-     */
-    public function getCurrentClient()
+    public function getCurrentClient(): Nsqd
     {
         return $this->getQueue()->getCurrentClient();
     }

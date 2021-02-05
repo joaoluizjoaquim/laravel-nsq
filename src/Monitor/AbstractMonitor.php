@@ -55,15 +55,6 @@ abstract class AbstractMonitor
     }
 
     /**
-     * check is connect
-     * @return mixed
-     */
-    public function isConnected()
-    {
-        return $this->client->isConnected();
-    }
-
-    /**
      * @return mixed
      */
     public function reconnect()

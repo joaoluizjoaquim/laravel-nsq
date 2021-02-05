@@ -22,6 +22,10 @@ class Unpack
      */
     const OK = 'OK';
 
+    /**
+     * CLOSE_WAIT response content
+     */
+    const CLOSE_WAIT = 'CLOSE_WAIT';
     
     /**
      * Read frame
@@ -140,6 +144,18 @@ class Unpack
     public static function isError($frame)
     {
         return self::checkMessage($frame, self::FRAME_TYPE_ERROR);
+    }
+
+    /**
+     * Test if frame is CLOSE_WAIT
+     *
+     * @param $frame
+     *
+     * @return bool
+     */
+    public static function isCloseWait($frame)
+    {
+        return self::checkMessage($frame, self::FRAME_TYPE_RESPONSE, self::CLOSE_WAIT);
     }
 
     /**

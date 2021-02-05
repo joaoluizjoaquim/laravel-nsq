@@ -37,13 +37,9 @@ class TcpClient
         return $result;
     }
 
-    public function isConnected() {
-        return $this->connected;
-    }
-
     public function close() {
-        Log::debug("Closing socket...");
+        Log::debug("Closing tcp socket");
         $this->socket->close();
-        Log::debug("Socket closed");
+        Log::debug("Tcp socket closed");
     }
 }

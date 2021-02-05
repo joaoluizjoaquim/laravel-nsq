@@ -82,6 +82,9 @@ class NsqLookupd
                 if (!$result) {
                     throw new LookupException("Error to parse nsqd response $hostUrl. Payload: $payload");
                 }
+                if (isset($result['message']) && $result['message'] == 'TOPIC_NOT_FOUND') {
+                    throw new LookupException("Topic $topic not found in nsqdlookup $hostUrl");
+                }
                 $producers = [];
                 if (isset($result['data']['producers'])) {
                     //0.3.8
@@ -89,6 +92,9 @@ class NsqLookupd
                 } elseif (isset($result['producers'])) {
                     //>=1.0.0
                     $producers = $result['producers'];
+                }
+                if (empty($producers)) {
+                    throw new LookupException("None producer for topic $topic in nsqdlookup $hostUrl found");
                 }
                 foreach ($producers as $producer) {
                     $nsqd = new Nsqd(

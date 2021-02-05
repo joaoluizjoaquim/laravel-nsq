@@ -4,16 +4,19 @@ namespace Jiyis\Nsq\Queue;
 
 use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\Queue;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Jiyis\Nsq\Adapter\NsqClientManager;
 use Jiyis\Nsq\Exception\FrameException;
 use Jiyis\Nsq\Exception\PublishException;
-use Jiyis\Nsq\Exception\SubscribeException;
 use Jiyis\Nsq\Message\Packet;
 use Jiyis\Nsq\Message\Unpack;
+use Jiyis\Nsq\Model\Nsqd;
 use Jiyis\Nsq\Model\NsqdList;
 use Jiyis\Nsq\Queue\Jobs\NsqJob;
+use Socket\Raw\Exception as SocketRawException;
+use Exception;
 
 class NsqQueue extends Queue implements QueueContract
 {
@@ -26,12 +29,12 @@ class NsqQueue extends Queue implements QueueContract
      * nsq tcp client pool
      * @var NsqClientManager
      */
-    protected $pool;
+    protected $clientManager;
 
 
     /**
      * current nsq tcp client
-     * @var NsqClientManager
+     * @var Nsqd
      */
     protected $currentClient;
 
@@ -128,82 +131,59 @@ class NsqQueue extends Queue implements QueueContract
      * @param null $queue
      * @return \Illuminate\Contracts\Queue\Job|NsqJob|null
      */
-    public function pop($queue = null)
+    public function pop($queue = null): ?NsqJob
     {
         try {
             $response = null;
             foreach ($this->getNsqdList()->orderByDepthMessagesDesc() as $client) {
                 $nsqdInstance = $client->getTcpAddress();
-                
-                if (!$client->isConnected()) {
-                    Log::debug($nsqdInstance.' is not connected, continue');
-                    continue;
-                }
-
                 $this->currentClient = $client;
-
-                if (!$this->currentClient->hasDepthMessages()) {
-                    Log::debug($nsqdInstance.' has no message in depth stats cache, continue');
-                    continue;
-                }
-
                 $data = $this->currentClient->receive();
 
                 // if no message return null
                 if (!$data) {
-                    Log::debug($nsqdInstance." has no message, continue");
+                    Log::debug("$nsqdInstance has no message, continue");
                     continue;
                 }
 
                 // unpack message
                 $frame = Unpack::getFrame($data);
                 if (Unpack::isHeartbeat($frame)) {
-                    Log::debug($nsqdInstance.': sending heartbeat '.json_encode($frame));
+                    Log::debug("$nsqdInstance: sending heartbeat ".json_encode($frame));
                     $this->currentClient->send(Packet::nop());
                 } elseif (Unpack::isOk($frame)) {
-                    Log::debug($nsqdInstance.' frame ok '.json_encode($frame));
+                    Log::debug("$nsqdInstance frame ok ".json_encode($frame));
                 } elseif (Unpack::isError($frame)) {
-                    Log::debug($nsqdInstance.' error in frame received '.json_encode($frame));
+                    Log::error("$nsqdInstance error in frame received ".json_encode($frame));
                 } elseif (Unpack::isMessage($frame)) {
                     $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
-                    Log::debug($nsqdInstance.' ready to process job '.get_class($this->consumerJob));
-                    $response = new NsqJob($this->container, $this, $rawBody, $queue);
-                    break;
+                    return new NsqJob($this->container, $this, $rawBody, $queue);
                 } else {
                     Log::debug($nsqdInstance.' not recognized frame. '.json_encode($frame));
                 }
             }
             $this->refreshClient();
-            return $response;
-        } catch (\Throwable $exception) {
-            throw new SubscribeException($exception->getMessage());
+        } catch (SocketRawException $e) {
+            if (Str::contains($e->getMessage(), ['Broken pipe'])) {
+                throw new SocketRawException("Lost connection. Source error message: ".$e->getMessage());
+            }
+            throw $e;
         }
+        
+        return $response;
     }
 
     /**
      * refresh nsq client form nsqlookupd result
      */
-    protected function refreshClient()
+    private function refreshClient()
     {
-        // check connect time
-        if ($this->isConnectionTimeGreaterThanInSeconds(Config::get('nsqlookup_refresh_reconnection_time', 180)) ||
-            $this->getNsqdList()->isWithoutMessages()) {
-            $this->getNsqdList()->close();
-            $queueManager = app('queue');
-            $reflect = new \ReflectionObject($queueManager);
-            $property = $reflect->getProperty('connections');
-            $property->setAccessible(true);
-            //remove nsq
-            $connections = $property->getValue($queueManager);
-            unset($connections['nsq']);
-            $property->setValue($queueManager, $connections);
-            Log::debug("refresh nsq client success.");
+        if (!$this->getNsqdList()->isWithoutMessages()) {
+            return;
         }
-    }
-
-    private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {
-        $connectTime = $this->clientManager->getConnectTime();
-        return time() - $connectTime >= $seconds;
+        $this->getNsqdList()->close();
+        $this->clientManager->connect();
+        Log::debug("refresh nsq client success.");
     }
 
     /**
@@ -259,19 +239,10 @@ class NsqQueue extends Queue implements QueueContract
     }
 
     /**
-     * Get the underlying Nsq instance.
-     * @return NsqClientManager
-     */
-    public function getClientPool()
-    {
-        return $this->clientManager;
-    }
-
-    /**
      * Get the connection for the queue.
      * @return mixed
      */
-    public function getCurrentClient()
+    public function getCurrentClient(): Nsqd
     {
         return $this->currentClient;
     }

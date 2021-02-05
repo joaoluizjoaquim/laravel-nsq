@@ -9,10 +9,6 @@ return [
     'driver' => 'nsq',
     'queue' => env('API_PREFIX', 'default'),
 
-    'configs' => [
-      'nsqlookup_refresh_reconnection_time' => env('NSQLOOKUP_REFRESH_CONNECTION', 180)
-    ],
-
     /*
      |--------------------------------------------------------------------------
      | Nsqd host  nsqlookup host
@@ -33,7 +29,6 @@ return [
     'options' => [
         //Update RDY state (indicate you are ready to receive N messages)
         'rdy' => env('NSQ_OPTIONS_RDY', 1),
-        'cl'  => 1
     ],
 
     /*
@@ -43,8 +38,9 @@ return [
       |
       */
     'identify' => [
-        'user_agent' => 'nsq-client',
-        'feature_negotiation' => true,
+        'user_agent' => 'Laravel-nsq client',
+        'client_id' => uniqid(),
+        'feature_negotiation' => false,
         'hostname' => gethostname()
     ]
 ];

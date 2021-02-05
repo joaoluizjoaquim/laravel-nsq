@@ -5,8 +5,11 @@ namespace Jiyis\Nsq\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Jiyis\Nsq\Adapter\TcpClient;
+use Jiyis\Nsq\Exception\IdentifyException;
 use Jiyis\Nsq\Exception\LookupException;
+use Jiyis\Nsq\Exception\SubscribeException;
 use Jiyis\Nsq\Message\Packet;
+use Jiyis\Nsq\Message\Unpack;
 use Jiyis\Nsq\Monitor\AbstractMonitor;
 use Socket\Raw\Factory;
 
@@ -72,6 +75,12 @@ class Nsqd extends AbstractMonitor
         // send identify params
         Log::debug('send identify params');
         $this->client->send(Packet::identify(Arr::get($this->nsqDriverConfig, 'identify')));
+        $frame = Unpack::getFrame($this->receive());
+        if (!Unpack::isOk($frame)) {
+            throw new IdentifyException("Something is wrong to send IDENTIFY message to " . 
+                $this->getTcpAddress() . 
+                ". Response: ". json_encode($frame));
+        }
     }
 
     public function sub()
@@ -79,14 +88,20 @@ class Nsqd extends AbstractMonitor
         // sub nsq topic and channel
         Log::debug('sub nsq topic and channel');
         $this->client->send(Packet::sub($this->topic, $this->channel));
+        $frame = Unpack::getFrame($this->receive());
+        if (!Unpack::isOk($frame)) {
+            throw new SubscribeException("Something is wrong to send SUB message to " . 
+                $this->getTcpAddress() . 
+                ". Response: ". json_encode($frame));
+        }
+        
+        $this->rdy(Arr::get($this->nsqDriverConfig, 'options.rdy', 1));
 
-        $this->sendReady(Arr::get($this->nsqDriverConfig, 'options.rdy', 1));
-
-        $this->stats = $this->getStatsFromNsqdInstance();
+        $this->updateStats();
     }
 
     // tell nsq server to be ready accept {n} data
-    public function sendReady(int $count): void
+    public function rdy(int $count): void
     {
         Log::debug("tell nsq server to be ready accept $count data");
         $this->client->send(Packet::rdy($count));
@@ -102,25 +117,30 @@ class Nsqd extends AbstractMonitor
         return $this->broadcast_address.':'.$this->http_port;
     }
 
-    public function getDepthMessages(): int
+    public function getTotalMessages(): int
     {
         return isset($this->stats['depth']) ? $this->stats['depth'] : 0;
     }
 
-    public function hasDepthMessages(): bool
+    public function hasMessagesToRead(): bool
     {
-        return isset($this->stats['depth']) && $this->stats['depth'] > 0;
+        return $this->getTotalMessages() > 0;
     }
 
     public function subDepthMessage(): void
     {
-        if (!$this->hasDepthMessages()) {
+        if (!$this->hasMessagesToRead()) {
             return;
         }
         $this->stats['depth'] = $this->stats['depth'] - 1;
     }
 
-    public function getStatsFromNsqdInstance(): array
+    public function updateStats(): void
+    {
+        $this->stats = $this->getStatsFromNsqdInstance();
+    }
+
+    private function getStatsFromNsqdInstance(): array
     {
         $factory = new Factory();
         $httpAddress = $this->getHttpAddress();
@@ -134,6 +154,9 @@ class Nsqd extends AbstractMonitor
             throw new LookupException("Error to connect nsq instance url $httpAddress");
         }
         $channelStats = [];
+        if (!isset($result['topics']) || empty($result['topics'])) {
+            throw new LookupException("No info status found for topic ".$this->topic." in nsqd ".$this->getHttpAddress());
+        }
         foreach($result['topics'] as $topicItem) {
             if ($topicItem['topic_name'] != $this->topic) continue;
 
@@ -147,5 +170,19 @@ class Nsqd extends AbstractMonitor
         }
         $socket->close();
         return $channelStats;
+    }
+
+    public function close()
+    {
+        Log::debug('send cls packet to close nsq connection');
+        $this->client->send(Packet::cls());
+        $frame = Unpack::getFrame($this->receive());
+        if (!Unpack::isCloseWait($frame)) {
+            Log::debug("Something is wrong to send CLS message to " .
+                $this->getTcpAddress() .
+                ". Response: ". json_encode($frame));
+        }
+        Log::debug("closed nsq connection successfully");
+        $this->client->close();
     }
 }

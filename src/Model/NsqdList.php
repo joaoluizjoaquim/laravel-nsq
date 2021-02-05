@@ -2,10 +2,6 @@
 
 namespace Jiyis\Nsq\Model;
 
-
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Log;
-
 class NsqdList
 {
 
@@ -19,7 +15,7 @@ class NsqdList
         $this->instances = [];
     }
 
-    public function add(Nsqd $nsqd)
+    public function add(Nsqd $nsqd): void
     {
         $this->instances[] = $nsqd;
     }
@@ -27,7 +23,7 @@ class NsqdList
     public function orderByDepthMessagesDesc()
     {
         usort($this->instances, function($instanceA, $instanceB) {
-            return $instanceB->getDepthMessages() - $instanceA->getDepthMessages();
+            return $instanceB->getTotalMessages() - $instanceA->getTotalMessages();
         });
         return $this->instances;
     }
@@ -36,7 +32,7 @@ class NsqdList
     public function isWithoutMessages(): bool
     {
         foreach($this->instances as $instance) {
-            if($instance->hasDepthMessages()) {
+            if($instance->hasMessagesToRead()) {
                 return false;
             }
         }
@@ -46,12 +42,12 @@ class NsqdList
     public function size(): int
     {
         return array_reduce($this->instances, function ($total, $instance) {
-            $total += $instance->getDepthMessages();
+            $total += $instance->getTotalMessages();
             return $total;
         }, $size = 0);
     }
 
-    public function close()
+    public function close(): void
     {
         foreach ($this->instances as $client) {
             $client->close();
