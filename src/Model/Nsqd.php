@@ -194,4 +194,9 @@ class Nsqd extends AbstractMonitor
         Log::debug("closed nsq connection successfully");
         $this->client->close();
     }
+
+    public function isConnected(): bool
+    {
+        return $this->client->isConnected();
+    }
 }

@@ -22,22 +22,31 @@ class TcpClient
         $this->factory = new Factory();
     }
 
-    public function connect(string $host, string $port) {
+    public function connect(string $host, string $port): void
+    {
         $this->socket = $this->factory->createClient("tcp://$host:$port");
-        $this->connected = true;
     }
 
-    public function send(string $payload) {
+    public function isConnected(): bool
+    {
+        $code = $this->socket->getOption(SOL_SOCKET, SO_ERROR);
+        return $code == 0;
+    }
+
+    public function send(string $payload)
+    {
         $this->socket->write($payload);
     }
 
-    public function recv() {
+    public function recv()
+    {
         Log::debug("Reading response...");
-        $result = $this->socket->read(8192);
+        $result = $this->socket->read(16384);
         return $result;
     }
 
-    public function close() {
+    public function close()
+    {
         Log::debug("Closing tcp socket");
         $this->socket->close();
         Log::debug("Tcp socket closed");
