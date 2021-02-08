@@ -76,7 +76,7 @@ class NsqLookupd
 
                 $path = $topic ? sprintf('/lookup?topic=%s', urlencode($topic)) : '/lookup';
                 $socket->write("GET $path HTTP/1.1\r\nHost: $hostUrl\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
-                $payload = $socket->read(8192);
+                $payload = $socket->read(16384);
                 $body = $this->get_string_between($payload, '{"', '}]}');
                 $result = json_decode($body, true);
                 if (!$result) {

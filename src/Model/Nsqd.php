@@ -147,7 +147,7 @@ class Nsqd extends AbstractMonitor
         $socket = $factory->createClient($httpAddress);
         $path = sprintf('/stats?format=json&topic=%s&channel=%s', urlencode($this->topic), urlencode($this->channel));
         $socket->write("GET $path HTTP/1.1\r\nHost: $httpAddress\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
-        $payload = $socket->read(8192);
+        $payload = $socket->read(16384);
         $body = $this->get_string_between($payload, '{"', '}]}');
         $result = json_decode($body, true);
         if (!$result) {
