@@ -139,11 +139,6 @@ class NsqQueue extends Queue implements QueueContract
                 $nsqdInstance = $client->getTcpAddress();
                 $this->currentClient = $client;
 
-                if (!$this->currentClient->isConnected()) {
-                    Log::debug("$nsqdInstance doesn't connected, continue");
-                    continue;
-                }
-
                 if (!$this->currentClient->hasMessagesToRead()) {
                     Log::debug("$nsqdInstance has no message in depth stats cache, continue");
                     continue;
