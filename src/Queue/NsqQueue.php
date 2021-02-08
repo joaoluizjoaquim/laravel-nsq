@@ -175,7 +175,7 @@ class NsqQueue extends Queue implements QueueContract
             }
             $this->refreshClient();
         } catch (SocketRawException $e) {
-            if (Str::contains($e->getMessage(), ['Broken pipe'])) {
+            if (Str::contains($e->getMessage(), ['Broken pipe', 'Socket operation failed'])) {
                 throw new SocketRawException("Lost connection. Source error message: ".$e->getMessage());
             }
             throw $e;
