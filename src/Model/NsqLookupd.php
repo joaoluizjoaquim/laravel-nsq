@@ -77,7 +77,7 @@ class NsqLookupd
                 $path = $topic ? sprintf('/lookup?topic=%s', urlencode($topic)) : '/lookup';
                 $socket->write("GET $path HTTP/1.1\r\nHost: $hostUrl\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
                 $payload = $socket->read(8192);
-                $body = substr($payload, strrpos($payload, "{\"ch"));
+                $body = $this->get_string_between($payload, '{"', '}]}');
                 $result = json_decode($body, true);
                 if (!$result) {
                     throw new LookupException("Error to parse nsqd response $hostUrl. Payload: $payload");
@@ -115,6 +115,15 @@ class NsqLookupd
             }
         }
         return $nsqdList;
+    }
+
+    private function get_string_between($string, $start, $end){
+        $string = " ".$string;
+        $ini = strpos($string,$start);
+        if ($ini == 0) return "";
+        $len = strpos($string,$end,$ini) - $ini;
+        $len = $len + strlen($end);
+        return substr($string, $ini, $len);
     }
 
     /**
