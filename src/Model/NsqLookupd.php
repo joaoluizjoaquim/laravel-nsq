@@ -77,7 +77,7 @@ class NsqLookupd
                 $path = $topic ? sprintf('/lookup?topic=%s', urlencode($topic)) : '/lookup';
                 $socket->write("GET $path HTTP/1.1\r\nHost: $hostUrl\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
                 $payload = $socket->read(8192);
-                $body = substr($payload, strrpos($payload, "\r\n"));
+                $body = substr($payload, strrpos($payload, "{"));
                 $result = json_decode($body, true);
                 if (!$result) {
                     throw new LookupException("Error to parse nsqd response $hostUrl. Payload: $payload");
@@ -135,7 +135,7 @@ class NsqLookupd
                 $path = '/nodes';
                 $socket->write("GET $path HTTP/1.1\r\nHost: $hostUrl\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
                 $payload = $socket->read(8192);
-                $body = substr($payload, strrpos($payload, "{\"producers\""));
+                $body = substr($payload, strrpos($payload, "{"));
                 $result = json_decode($body, true);
                 if (!$result) {
                     throw new LookupException("Error to connect NsqLookup url $hostUrl");
