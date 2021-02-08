@@ -148,10 +148,10 @@ class Nsqd extends AbstractMonitor
         $path = sprintf('/stats?format=json&topic=%s&channel=%s', urlencode($this->topic), urlencode($this->channel));
         $socket->write("GET $path HTTP/1.1\r\nHost: $httpAddress\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
         $payload = $socket->read(8192);
-        $body = substr($payload, strrpos($payload, "\r\n"));
+        $body = substr($payload, strrpos($payload, "{\"ve"));
         $result = json_decode($body, true);
         if (!$result) {
-            throw new LookupException("Error to connect nsq instance url $httpAddress");
+            throw new LookupException("Error to connect nsq instance url $httpAddress. Payload: $payload");
         }
         $channelStats = [];
         if (!isset($result['topics']) || empty($result['topics'])) {
