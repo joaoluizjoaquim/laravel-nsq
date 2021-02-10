@@ -6,7 +6,6 @@ use \Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Jiyis\Nsq\Exception\LookupException;
-use Socket\Raw\Factory;
 
 class NsqLookupd
 {
@@ -66,19 +65,26 @@ class NsqLookupd
      */
     public function lookup(string $topic, string $channel)
     {
-        $factory = new Factory();
         $nsqdList = new NsqdList();
 
         foreach ($this->hosts as $hostUrl) {
-            $socket = null;
-            try { 
-                $socket = $factory->createClient($hostUrl, $this->responseTimeout);
+            $url = sprintf('http://%s/lookup?topic=%s', $hostUrl, urlencode($topic));
 
-                $path = $topic ? sprintf('/lookup?topic=%s', urlencode($topic)) : '/lookup';
-                $socket->write("GET $path HTTP/1.1\r\nHost: $hostUrl\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
-                $payload = $socket->read(16384);
-                list($header, $body) = preg_split("/\R\R/", $payload, 2);
-                $result = json_decode($body, true);
+            $ch = curl_init($url);
+            $options = [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HEADER         => false,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_ENCODING       => '',
+                CURLOPT_USERAGENT      => 'nsq swoole client',
+                CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout,
+                CURLOPT_TIMEOUT        => $this->responseTimeout,
+                CURLOPT_FAILONERROR    => true
+            ];
+            curl_setopt_array($ch, $options);
+            $resultStr = curl_exec($ch);
+            if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
+                $result = json_decode($resultStr, true);
                 if (!$result) {
                     throw new LookupException("Error to parse nsqd response $hostUrl. Payload: $payload");
                 }
@@ -96,22 +102,26 @@ class NsqLookupd
                 if (empty($producers)) {
                     throw new LookupException("None producer for topic $topic in nsqdlookup $hostUrl found");
                 }
-                foreach ($producers as $producer) {
+                foreach ($producers as $prod) {
                     $nsqd = new Nsqd(
                         $this->nsqDriverConfig,
-                        $producer,
+                        $prod,
                         $topic,
                         $channel
                     );
                     $nsqd->sub();
                     $nsqdList->add($nsqd);
                 }
-            } catch (Exception $e) {
-                throw new LookupException($e->getMessage());
-            } finally {
-                if ($socket) {
-                    $socket->close();
-                }
+                curl_close($ch);
+            } elseif (curl_getinfo($ch, CURLINFO_HTTP_CODE) == '404') {
+                Log::info("Topic not found at URL: $url");
+                curl_close($ch);
+                continue;
+            } else {
+                $err = curl_error($ch);
+                Log::error($err . $resultStr);
+                curl_close($ch);
+                throw new LookupException($err, -1);
             }
         }
         return $nsqdList;

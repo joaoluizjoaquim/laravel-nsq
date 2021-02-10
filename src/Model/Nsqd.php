@@ -11,7 +11,6 @@ use Jiyis\Nsq\Exception\SubscribeException;
 use Jiyis\Nsq\Message\Packet;
 use Jiyis\Nsq\Message\Unpack;
 use Jiyis\Nsq\Monitor\AbstractMonitor;
-use Socket\Raw\Factory;
 
 class Nsqd extends AbstractMonitor
 {
@@ -142,34 +141,46 @@ class Nsqd extends AbstractMonitor
 
     private function getStatsFromNsqdInstance(): array
     {
-        $factory = new Factory();
         $httpAddress = $this->getHttpAddress();
-        $socket = $factory->createClient($httpAddress);
-        $path = sprintf('/stats?format=json&topic=%s&channel=%s', urlencode($this->topic), urlencode($this->channel));
-        $socket->write("GET $path HTTP/1.1\r\nHost: $httpAddress\r\nUser-Agent: Laravel-nsq driver \r\n\r\n");
-        $payload = $socket->read(16384);
-        list($header, $body) = preg_split("/\R\R/", $payload, 2);
-        $result = json_decode($body, true);
-        if (!$result) {
-            throw new LookupException("Error to connect nsq instance url $httpAddress. Payload: $payload");
-        }
-        $channelStats = [];
-        if (!isset($result['topics']) || empty($result['topics'])) {
-            throw new LookupException("No info status found for topic ".$this->topic." in nsqd ".$this->getHttpAddress());
-        }
-        foreach($result['topics'] as $topicItem) {
-            if ($topicItem['topic_name'] != $this->topic) continue;
 
-            foreach($topicItem['channels'] as $channelItem) {
-                if ($channelItem['channel_name'] != $this->channel) continue;
+        $url = sprintf('http://%s/stats?format=json&topic=%s&channel=%s', $httpAddress, urlencode($this->topic), urlencode($this->channel));
+        $ch = curl_init($url);
+        $options = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER         => false,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_USERAGENT      => 'nsq swoole client',
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT        => 6,
+            CURLOPT_FAILONERROR    => true
+        ];
+        curl_setopt_array($ch, $options);
+        if (!$resultStr = curl_exec($ch)) {
+            throw new LookupException('Error talking to nsqd via ' . $url);
+        }
+        if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
+            $result = json_decode($resultStr, true);
+            $channelStats = [];
+            foreach($result['topics'] as $topicItem) {
+                if ($topicItem['topic_name'] != $this->topic) continue;
 
-                $channelStats = $channelItem;
+                foreach($topicItem['channels'] as $channelItem) {
+                    if ($channelItem['channel_name'] != $this->channel) continue;
+
+                    $channelStats = $channelItem;
+                    break;
+                }
                 break;
             }
-            break;
+            curl_close($ch);
+            return $channelStats;
+        } else {
+            $err = curl_error($ch);
+            Log::error($err . $resultStr);
+            curl_close($ch);
+            throw new LookupException($err, -1);
         }
-        $socket->close();
-        return $channelStats;
     }
 
     public function close()
