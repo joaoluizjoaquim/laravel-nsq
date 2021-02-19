@@ -74,12 +74,12 @@ class Nsqd extends AbstractMonitor
         // send identify params
         Log::debug('send identify params');
         $this->client->send(Packet::identify(Arr::get($this->nsqDriverConfig, 'identify')));
-        $frame = Unpack::getFrame($this->receive());
-        if (!Unpack::isOk($frame)) {
-            throw new IdentifyException("Something is wrong to send IDENTIFY message to " . 
-                $this->getTcpAddress() . 
-                ". Response: ". json_encode($frame));
-        }
+        // $frame = Unpack::getFrame($this->receive());
+        // if (!Unpack::isOk($frame)) {
+        //     throw new IdentifyException("Something is wrong to send IDENTIFY message to " . 
+        //         $this->getTcpAddress() . 
+        //         ". Response: ". json_encode($frame));
+        // }
     }
 
     public function sub()
@@ -87,12 +87,12 @@ class Nsqd extends AbstractMonitor
         // sub nsq topic and channel
         Log::debug('sub nsq topic and channel');
         $this->client->send(Packet::sub($this->topic, $this->channel));
-        $frame = Unpack::getFrame($this->receive());
-        if (!Unpack::isOk($frame)) {
-            throw new SubscribeException("Something is wrong to send SUB message to " . 
-                $this->getTcpAddress() . 
-                ". Response: ". json_encode($frame));
-        }
+        // $frame = Unpack::getFrame($this->receive());
+        // if (!Unpack::isOk($frame)) {
+        //     throw new SubscribeException("Something is wrong to send SUB message to " . 
+        //         $this->getTcpAddress() . 
+        //         ". Response: ". json_encode($frame));
+        // }
         
         $this->rdy(Arr::get($this->nsqDriverConfig, 'options.rdy', 1));
 
@@ -185,15 +185,15 @@ class Nsqd extends AbstractMonitor
 
     public function close()
     {
-        Log::debug('send cls packet to close nsq connection');
-        $this->client->send(Packet::cls());
-        $frame = Unpack::getFrame($this->receive());
-        if (!Unpack::isCloseWait($frame)) {
-            Log::debug("Something is wrong to send CLS message to " .
-                $this->getTcpAddress() .
-                ". Response: ". json_encode($frame));
-        }
-        Log::debug("closed nsq connection successfully");
+        // Log::debug('send cls packet to close nsq connection');
+        // $this->client->send(Packet::cls());
+        // $frame = Unpack::getFrame($this->receive());
+        // if (!Unpack::isCloseWait($frame)) {
+        //     Log::debug("Something is wrong to send CLS message to " .
+        //         $this->getTcpAddress() .
+        //         ". Response: ". json_encode($frame));
+        // }
+        // Log::debug("closed nsq connection successfully");
         $this->client->close();
     }
 
