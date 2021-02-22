@@ -78,6 +78,9 @@ class NsqClientManager
      */
     public function reflectionJob()
     {
+        if ($this->topic && $this->channel) {
+            return;
+        }
         $this->consumerJob = app(Config::get('consumer_job'));
         $reflect = new \ReflectionClass($this->consumerJob);
 

@@ -185,7 +185,7 @@ class NsqQueue extends Queue implements QueueContract
     private function refreshClient()
     {
         if (!$this->getNsqdList()->isWithoutMessages() ||
-            $this->isConnectionTimeGreaterThanInSeconds(180)) {
+            $this->isConnectionTimeGreaterThanInSeconds(600)) {
             return;
         }
         $this->getNsqdList()->close();
