@@ -23,7 +23,7 @@ class NsqdList
     public function orderByDepthMessagesDesc()
     {
         usort($this->instances, function($instanceA, $instanceB) {
-            return $instanceB->getTotalMessages() - $instanceA->getTotalMessages();
+            return $instanceA->getTotalMessages() < $instanceB->getTotalMessages();
         });
         return $this->instances;
     }
