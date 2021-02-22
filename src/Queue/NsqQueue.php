@@ -184,7 +184,8 @@ class NsqQueue extends Queue implements QueueContract
      */
     private function refreshClient()
     {
-        if (!$this->getNsqdList()->isWithoutMessages()) {
+        if (!$this->getNsqdList()->isWithoutMessages() ||
+            $this->isConnectionTimeGreaterThanInSeconds(180)) {
             return;
         }
         $this->getNsqdList()->close();
@@ -198,6 +199,11 @@ class NsqQueue extends Queue implements QueueContract
         unset($connections['nsq']);
         $property->setValue($queueManager, $connections);
         Log::debug("refresh nsq client success.");
+    }
+
+    private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {
+        $connectTime = $this->clientManager->getConnectTime();
+        return time() - $connectTime >= $seconds;
     }
 
     /**
