@@ -135,38 +135,38 @@ class NsqQueue extends Queue implements QueueContract
     {
         try {
             $response = null;
-            foreach ($this->getNsqdList()->orderByDepthMessagesDesc() as $client) {
-                $nsqdInstance = $client->getTcpAddress();
-                $this->currentClient = $client;
+            $this->currentClient = $this->getNsqdList()->getInstanceWithLargestDepthMessage();
+            $nsqdInstance = $this->currentClient->getTcpAddress();
 
-                if (!$this->currentClient->hasMessagesToRead()) {
-                    Log::debug("$nsqdInstance has no message in depth stats cache, continue");
-                    continue;
-                }
+            if (!$this->currentClient->hasMessagesToRead()) {
+                Log::debug("$nsqdInstance has no message in depth stats cache, continue");
+                $this->refreshClient();
+                return null;
+            }
 
-                $data = $this->currentClient->receive();
+            $data = $this->currentClient->receive();
 
-                // if no message return null
-                if (!$data) {
-                    Log::debug("$nsqdInstance has no message, continue");
-                    continue;
-                }
+            // if no message return null
+            if (!$data) {
+                Log::debug("$nsqdInstance has no message, continue");
+                $this->refreshClient();
+                return null;
+            }
 
-                // unpack message
-                $frame = Unpack::getFrame($data);
-                if (Unpack::isHeartbeat($frame)) {
-                    Log::debug("$nsqdInstance: sending heartbeat ".json_encode($frame));
-                    $this->currentClient->send(Packet::nop());
-                } elseif (Unpack::isOk($frame)) {
-                    Log::debug("$nsqdInstance frame ok ".json_encode($frame));
-                } elseif (Unpack::isError($frame)) {
-                    Log::error("$nsqdInstance error in frame received ".json_encode($frame));
-                } elseif (Unpack::isMessage($frame)) {
-                    $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
-                    return new NsqJob($this->container, $this, $rawBody, $queue);
-                } else {
-                    Log::debug($nsqdInstance.' not recognized frame. '.json_encode($frame));
-                }
+            // unpack message
+            $frame = Unpack::getFrame($data);
+            if (Unpack::isHeartbeat($frame)) {
+                Log::debug("$nsqdInstance: sending heartbeat ".json_encode($frame));
+                $this->currentClient->send(Packet::nop());
+            } elseif (Unpack::isOk($frame)) {
+                Log::debug("$nsqdInstance frame ok ".json_encode($frame));
+            } elseif (Unpack::isError($frame)) {
+                Log::error("$nsqdInstance error in frame received ".json_encode($frame));
+            } elseif (Unpack::isMessage($frame)) {
+                $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
+                return new NsqJob($this->container, $this, $rawBody, $queue);
+            } else {
+                Log::debug($nsqdInstance.' not recognized frame. '.json_encode($frame));
             }
             $this->refreshClient();
         } catch (SocketRawException $e) {

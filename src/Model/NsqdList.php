@@ -28,6 +28,17 @@ class NsqdList
         return $this->instances;
     }
 
+    public function getInstanceWithLargestDepthMessage(): Nsqd
+    {
+        $largestInstance = $this->instances[0];
+        foreach($this->instances as $instance) {
+            if ($instance->getTotalMessages() > $largestInstance->getTotalMessages()) {
+                $largestInstance = $instance;
+            }
+        }
+        return $largestInstance;
+    }
+
 
     public function isWithoutMessages(): bool
     {
