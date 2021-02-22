@@ -159,6 +159,7 @@ class Nsqd extends AbstractMonitor
         if (!$resultStr = curl_exec($ch)) {
             throw new LookupException('Error talking to nsqd via ' . $url);
         }
+        Log::info($resultStr);
         if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
             $result = json_decode($resultStr, true);
             $channelStats = [];

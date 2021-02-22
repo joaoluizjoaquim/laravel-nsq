@@ -189,16 +189,16 @@ class NsqQueue extends Queue implements QueueContract
             return;
         }
         $this->getNsqdList()->close();
-        // $this->clientManager->connect();
-        $queueManager = app('queue');
-        $reflect = new \ReflectionObject($queueManager);
-        $property = $reflect->getProperty('connections');
-        $property->setAccessible(true);
-        //remove nsq
-        $connections = $property->getValue($queueManager);
-        unset($connections['nsq']);
-        $property->setValue($queueManager, $connections);
-        Log::debug("refresh nsq client success.");
+        $this->clientManager->connect();
+        // $queueManager = app('queue');
+        // $reflect = new \ReflectionObject($queueManager);
+        // $property = $reflect->getProperty('connections');
+        // $property->setAccessible(true);
+        // //remove nsq
+        // $connections = $property->getValue($queueManager);
+        // unset($connections['nsq']);
+        // $property->setValue($queueManager, $connections);
+        // Log::debug("refresh nsq client success.");
     }
 
     private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {
