@@ -124,7 +124,6 @@ class NsqLookupd
                 throw new LookupException($err, -1);
             }
         }
-        Log::debug($nsqdList->get());
         return $nsqdList;
     }
 

@@ -170,7 +170,7 @@ class NsqQueue extends Queue implements QueueContract
             } else {
                 Log::debug("$nsqdInstance not recognized frame. ".json_encode($frame));
             }
-            if ($this->isConnectionTimeGreaterThanInSeconds(60)) {
+            if ($this->isConnectionTimeGreaterThanInSeconds(180)) {
                 $this->refreshClient();
             }
         } catch (SocketRawException $e) {

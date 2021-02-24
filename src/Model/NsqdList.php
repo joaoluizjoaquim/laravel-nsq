@@ -12,11 +12,6 @@ class NsqdList
         $this->instances[] = $nsqd;
     }
 
-    public function get(): array
-    {
-        return $this->instances;
-    }
-
     public function getInstanceWithLargestDepthMessage(): Nsqd
     {
         $largestInstance = $this->instances[0];
