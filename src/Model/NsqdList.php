@@ -5,26 +5,15 @@ namespace Jiyis\Nsq\Model;
 class NsqdList
 {
 
-    private $instances;
-
-    /**
-     * NsqdList constructor.
-     */
-    public function __construct()
-    {
-        $this->instances = [];
-    }
+    private $instances = [];
 
     public function add(Nsqd $nsqd): void
     {
         $this->instances[] = $nsqd;
     }
 
-    public function orderByDepthMessagesDesc()
+    public function get(): array
     {
-        usort($this->instances, function($instanceA, $instanceB) {
-            return $instanceA->getTotalMessages() < $instanceB->getTotalMessages();
-        });
         return $this->instances;
     }
 
@@ -39,7 +28,6 @@ class NsqdList
         return $largestInstance;
     }
 
-
     public function isWithoutMessages(): bool
     {
         foreach($this->instances as $instance) {
@@ -50,7 +38,7 @@ class NsqdList
         return true;
     }
 
-    public function size(): int
+    public function getTotalMessages(): int
     {
         return array_reduce($this->instances, function ($total, $instance) {
             $total += $instance->getTotalMessages();

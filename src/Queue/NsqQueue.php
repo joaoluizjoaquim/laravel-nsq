@@ -77,7 +77,7 @@ class NsqQueue extends Queue implements QueueContract
      */
     public function size($queueName = null): int
     {
-        return $this->getNsqdList()->size();
+        return $this->getNsqdList()->getTotalMessages();
     }
 
     /**
@@ -136,11 +136,14 @@ class NsqQueue extends Queue implements QueueContract
         try {
             $response = null;
             $this->currentClient = $this->getNsqdList()->getInstanceWithLargestDepthMessage();
-            $nsqdInstance = $this->currentClient->getTcpAddress();
+            $nsqdInstance = $this->currentClient->getTcpAddress(). " - ".
+                $this->currentClient->getTopic().':'.$this->currentClient->getChannel();
 
             if (!$this->currentClient->hasMessagesToRead()) {
                 Log::debug("$nsqdInstance has no message in depth stats cache, continue");
-                // $this->refreshClient();
+                if ($this->getNsqdList()->isWithoutMessages()) {
+                    $this->refreshClient();
+                }
                 return null;
             }
 
@@ -149,7 +152,6 @@ class NsqQueue extends Queue implements QueueContract
             // if no message return null
             if (!$data) {
                 Log::debug("$nsqdInstance has no message, continue");
-                // $this->refreshClient();
                 return null;
             }
 
@@ -166,9 +168,11 @@ class NsqQueue extends Queue implements QueueContract
                 $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
                 return new NsqJob($this->container, $this, $rawBody, $queue);
             } else {
-                Log::debug($nsqdInstance.' not recognized frame. '.json_encode($frame));
+                Log::debug("$nsqdInstance not recognized frame. ".json_encode($frame));
             }
-            $this->refreshClient();
+            if ($this->isConnectionTimeGreaterThanInSeconds(60)) {
+                $this->refreshClient();
+            }
         } catch (SocketRawException $e) {
             if (Str::contains($e->getMessage(), ['socket_close', 'Broken pipe', 'Socket operation failed'])) {
                 throw new SocketRawException("Lost connection. Source error message: ".$e->getMessage());
@@ -184,20 +188,9 @@ class NsqQueue extends Queue implements QueueContract
      */
     private function refreshClient()
     {
-        if ($this->getNsqdList()->isWithoutMessages() ||
-            $this->isConnectionTimeGreaterThanInSeconds(600)) {
-                $this->getNsqdList()->close();
-                $this->clientManager->connect();
-        }
-        // $queueManager = app('queue');
-        // $reflect = new \ReflectionObject($queueManager);
-        // $property = $reflect->getProperty('connections');
-        // $property->setAccessible(true);
-        // //remove nsq
-        // $connections = $property->getValue($queueManager);
-        // unset($connections['nsq']);
-        // $property->setValue($queueManager, $connections);
-        // Log::debug("refresh nsq client success.");
+        Log::debug('refreshing connection');
+        $this->getNsqdList()->close();
+        $this->clientManager->connect();
     }
 
     private function isConnectionTimeGreaterThanInSeconds(int $seconds): bool {

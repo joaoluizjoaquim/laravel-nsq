@@ -41,7 +41,7 @@ class TcpClient
     public function recv()
     {
         Log::debug("Reading response...");
-        $result = $this->socket->read(16384);
+        $result = $this->socket->read(8196);
         return $result;
     }
 

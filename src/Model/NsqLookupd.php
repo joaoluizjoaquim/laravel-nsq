@@ -92,7 +92,6 @@ class NsqLookupd
                     throw new LookupException("Topic $topic not found in nsqdlookup $hostUrl");
                 }
                 $producers = [];
-                Log::info($result);
                 if (isset($result['data']['producers'])) {
                     //0.3.8
                     $producers = $result['data']['producers'];
@@ -125,6 +124,7 @@ class NsqLookupd
                 throw new LookupException($err, -1);
             }
         }
+        Log::debug($nsqdList->get());
         return $nsqdList;
     }
 
