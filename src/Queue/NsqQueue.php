@@ -140,7 +140,7 @@ class NsqQueue extends Queue implements QueueContract
 
             if (!$this->currentClient->hasMessagesToRead()) {
                 Log::debug("$nsqdInstance has no message in depth stats cache, continue");
-                $this->refreshClient();
+                // $this->refreshClient();
                 return null;
             }
 
@@ -149,7 +149,7 @@ class NsqQueue extends Queue implements QueueContract
             // if no message return null
             if (!$data) {
                 Log::debug("$nsqdInstance has no message, continue");
-                $this->refreshClient();
+                // $this->refreshClient();
                 return null;
             }
 
@@ -170,7 +170,7 @@ class NsqQueue extends Queue implements QueueContract
             }
             $this->refreshClient();
         } catch (SocketRawException $e) {
-            if (Str::contains($e->getMessage(), ['Broken pipe', 'Socket operation failed'])) {
+            if (Str::contains($e->getMessage(), ['socket_close', 'Broken pipe', 'Socket operation failed'])) {
                 throw new SocketRawException("Lost connection. Source error message: ".$e->getMessage());
             }
             throw $e;

@@ -97,8 +97,8 @@ class NsqJob extends Job implements JobContract
         // sending to client set success
         $client->send(Packet::fin($this->getJobId()));
         Log::debug("Process job success, send fin to nsq server.");
-
         $client->subDepthMessage();
+        $client->rdy(1);
     }
 
 
