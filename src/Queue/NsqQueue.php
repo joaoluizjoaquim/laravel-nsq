@@ -173,7 +173,7 @@ class NsqQueue extends Queue implements QueueContract
             if ($this->isConnectionTimeGreaterThanInSeconds(180)) {
                 $this->refreshClient();
             }
-        } catch (SocketRawException $e) {
+        } catch (SocketRawException | Exception $e) {
             if (Str::contains($e->getMessage(), ['socket_close', 'Broken pipe', 'Socket operation failed'])) {
                 throw new SocketRawException("Lost connection. Source error message: ".$e->getMessage());
             }
