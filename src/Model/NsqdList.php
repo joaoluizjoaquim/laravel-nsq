@@ -23,6 +23,14 @@ class NsqdList
         return $largestInstance;
     }
 
+    public function orderByDepthMessagesDesc()
+    {
+        usort($this->instances, function($instanceA, $instanceB) {
+            return $instanceA->getTotalMessages() < $instanceB->getTotalMessages();
+        });
+        return $this->instances;
+    }
+
     public function isWithoutMessages(): bool
     {
         foreach($this->instances as $instance) {

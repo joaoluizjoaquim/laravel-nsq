@@ -134,44 +134,43 @@ class NsqQueue extends Queue implements QueueContract
     public function pop($queue = null): ?NsqJob
     {
         try {
-            $response = null;
-            $this->currentClient = $this->getNsqdList()->getInstanceWithLargestDepthMessage();
-            $nsqdInstance = $this->currentClient->getTcpAddress(). " - ".
-                $this->currentClient->getTopic().':'.$this->currentClient->getChannel();
+            foreach ($this->getNsqdList()->orderByDepthMessagesDesc() as $client) {
+                $this->currentClient = $client;
+                $nsqdInstance = $this->currentClient->getTcpAddress(). " - ".
+                    $this->currentClient->getTopic().':'.$this->currentClient->getChannel();
 
-            if (!$this->currentClient->hasMessagesToRead()) {
-                Log::debug("$nsqdInstance has no message in depth stats cache, continue");
-                if ($this->getNsqdList()->isWithoutMessages()) {
+                if (!$this->currentClient->hasMessagesToRead()) {
+                    Log::debug("$nsqdInstance has no message in depth stats cache, continue");
+                    $this->refreshClient();
+                    return null;
+                }
+
+                $data = $this->currentClient->receive();
+
+                // if no message return null
+                if (!$data) {
+                    Log::debug("$nsqdInstance has no message, continue");
+                    continue;
+                }
+
+                // unpack message
+                $frame = Unpack::getFrame($data);
+                if (Unpack::isHeartbeat($frame)) {
+                    Log::debug("$nsqdInstance: sending heartbeat ".json_encode($frame));
+                    $this->currentClient->send(Packet::nop());
+                } elseif (Unpack::isOk($frame)) {
+                    Log::debug("$nsqdInstance frame ok ".json_encode($frame));
+                } elseif (Unpack::isError($frame)) {
+                    Log::error("$nsqdInstance error in frame received ".json_encode($frame));
+                } elseif (Unpack::isMessage($frame)) {
+                    $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
+                    return new NsqJob($this->container, $this, $rawBody, $queue);
+                } else {
+                    Log::debug("$nsqdInstance not recognized frame. ".json_encode($frame));
+                }
+                if ($this->isConnectionTimeGreaterThanInSeconds(60)) {
                     $this->refreshClient();
                 }
-                return null;
-            }
-
-            $data = $this->currentClient->receive();
-
-            // if no message return null
-            if (!$data) {
-                Log::debug("$nsqdInstance has no message, continue");
-                return null;
-            }
-
-            // unpack message
-            $frame = Unpack::getFrame($data);
-            if (Unpack::isHeartbeat($frame)) {
-                Log::debug("$nsqdInstance: sending heartbeat ".json_encode($frame));
-                $this->currentClient->send(Packet::nop());
-            } elseif (Unpack::isOk($frame)) {
-                Log::debug("$nsqdInstance frame ok ".json_encode($frame));
-            } elseif (Unpack::isError($frame)) {
-                Log::error("$nsqdInstance error in frame received ".json_encode($frame));
-            } elseif (Unpack::isMessage($frame)) {
-                $rawBody = $this->adapterNsqPayload($this->consumerJob, $frame);
-                return new NsqJob($this->container, $this, $rawBody, $queue);
-            } else {
-                Log::debug("$nsqdInstance not recognized frame. ".json_encode($frame));
-            }
-            if ($this->isConnectionTimeGreaterThanInSeconds(180)) {
-                $this->refreshClient();
             }
         } catch (SocketRawException | Exception $e) {
             if (Str::contains($e->getMessage(), ['socket_close', 'Broken pipe', 'Socket operation failed'])) {
@@ -179,8 +178,7 @@ class NsqQueue extends Queue implements QueueContract
             }
             throw $e;
         }
-        
-        return $response;
+        return null;
     }
 
     /**
